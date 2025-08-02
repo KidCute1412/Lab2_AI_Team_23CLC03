@@ -6,7 +6,7 @@ The puzzle involves connecting islands with bridges according to specific rules.
 """
 
 from typing import List, Tuple, Set, Dict, Optional
-from itertools import combinations
+from itertools import combinations, product
 import math
 
 # PySAT imports
@@ -34,6 +34,7 @@ class HashiwokakeroSolver:
         self.clauses = []
         self.variables = {} # (island1, island2, count) -> variable_number
         self.var_counter = 1
+        self.backtrack_counter = 0
         
         # Generate all possible bridge connections
         self.possible_bridges = self._find_possible_bridges()
@@ -433,13 +434,8 @@ class HashiwokakeroSolver:
                 self._add_clause_to_forbid_solution(solution)
                 print("  Added constraint to forbid this solution")
         
-        print(f"\n✗ Could not find connected solution in {max_iterations} iterations")
-        return None
-    
-
-
-
-
+        print(f"\nCould not find connected solution in {max_iterations} iterations")
+        return None    
 
 
     def print_solution(self, solution: Dict):
@@ -509,19 +505,139 @@ class HashiwokakeroSolver:
         for row in grid:
             print(' '.join(row))
 
+    def solve_brute_force(self, max_iterations: int = 1000) -> Optional[Dict]:
+        print("Starting brute-force SAT solving")
+
+        self.generate_cnf_constraints()
+        num_vars = self.var_counter - 1
+        tried_assignments = set()
+
+        for iteration in range(max_iterations):
+            print(f"\nIteration {iteration + 1}")
+            for assignment in product([False, True], repeat=num_vars):
+                model = [i + 1 if val else -(i + 1) for i, val in enumerate(assignment)]
+                if tuple(model) in tried_assignments:
+                    continue
+
+                # Check if model satisfies all clauses
+                if not self._satisfies_clauses(self.clauses, model):
+                    continue
+
+                # Interpret and validate
+                solution = self._interpret_solution(model)
+                print(f"Found candidate with {solution['total_bridges']} bridges")
+
+                if len(self.islands) == 0:
+                    print("✓ Empty puzzle - trivially connected")
+                    return solution
+
+                start_island = (self.islands[0][0], self.islands[0][1])
+                visited = set()
+                is_connected = dfs_check_connectivity(
+                    start_island,
+                    visited,
+                    self.island_positions,
+                    solution['bridges']
+                )
+
+                if is_connected:
+                    print("Connected solution found!")
+                    return solution
+                else:
+                    print(f"Disconnected solution (visited {len(visited)} of {len(self.islands)})")
+                    self._add_clause_to_forbid_solution(solution)
+                    tried_assignments.add(tuple(model))
+                    break  # Restart loop with new clause
+
+            else:
+                print("Exhausted all assignments without finding a valid solution.")
+                return None
+
+        print("Max iterations reached without finding a valid solution.")
+        return None
+
+    def _satisfies_clauses(self, clauses: List[List[int]], model: List[int]) -> bool:
+        model_set = set(model)
+        for clause in clauses:
+            if not any(lit in model_set for lit in clause):
+                return False
+        return True
+    
+    def solve_backtracking(self) -> Optional[Dict]:
+        print("Starting backtracking solver...")
+
+        # Initialize bridge state
+        bridge_state = {}
+        for bridge in self.possible_bridges:
+            bridge_state[bridge] = 0  # 0 means no bridge yet
+
+        # Initialize island bridge counts
+        island_counts = { (r, c): 0 for r, c, _ in self.islands }
+
+        def is_valid_bridge(island1, island2, count):
+            # Check if adding this bridge would exceed island limits
+            for island in [island1, island2]:
+                if island_counts[island] + count > self.island_positions[island]:
+                    return False
+
+            # Check for crossing with existing bridges
+            temp_bridge = (island1, island2)
+            for other_bridge, other_count in bridge_state.items():
+                if other_count > 0 and self._bridges_intersect(temp_bridge, other_bridge):
+                    return False
+
+            return True
+
+        def backtrack(index):
+            self.backtrack_counter += 1
+            if index == len(self.possible_bridges):
+                # Check if all islands have exact bridge counts
+                for island, required in self.island_positions.items():
+                    if island_counts[island] != required:
+                        return None
+
+                # Check connectivity using external DFS function
+                start_island = self.islands[0][:2]
+                visited = set()
+                bridges = [
+                    {'from': b[0], 'to': b[1], 'count': c}
+                    for b, c in bridge_state.items() if c > 0
+                ]
+                if dfs_check_connectivity(start_island, visited, self.island_positions, bridges):
+                    # Build solution dict
+                    solution = {
+                        'bridges': bridges,
+                        'bridge_counts': island_counts.copy(),
+                        'total_bridges': sum(c for c in bridge_state.values())
+                    }
+                    return solution
+                return None
+
+            island1, island2 = self.possible_bridges[index]
+
+            for count in [0, 1, 2]:
+                if count == 0 or is_valid_bridge(island1, island2, count):
+                    bridge_state[(island1, island2)] = count
+                    for island in [island1, island2]:
+                        island_counts[island] += count
+
+                    result = backtrack(index + 1)
+                    if result:
+                        return result
+
+                    # Undo
+                    for island in [island1, island2]:
+                        island_counts[island] -= count
+                    bridge_state[(island1, island2)] = 0
+
+            return None
+
+        return backtrack(0)
+
 
 def dfs_check_connectivity(island: Tuple[int, int], visited: Set[Tuple[int, int]],
                           island_positions: Dict[Tuple[int, int], int],
                           bridges: List[Dict]) -> bool:
-    """Perform DFS to check if all islands are connected via bridges.
-    Args:
-        island: Starting island position (row, col)
-        visited: Set of visited islands
-        island_positions: Dictionary of island positions and their required bridges
-        bridges: List of bridge dictionaries with 'from', 'to', 'count' keys
-    Returns:
-        True if all islands are reachable, False otherwise
-    """
     # Build adjacency list from bridges
     adjacency = {}
     for pos in island_positions:
@@ -548,17 +664,14 @@ def dfs_check_connectivity(island: Tuple[int, int], visited: Set[Tuple[int, int]
         for neighbor in adjacency.get(current, []):
             if neighbor not in visited:
                 stack.append(neighbor)
-    
-    # Check if all islands were visited
     return len(visited) == len(island_positions)
+
 def read_map():
-    map =  [[0 , 2 , 0 , 5 , 0 , 0 , 2],
-            [0 , 0 , 0 , 0 , 0 , 0 , 0],
-            [4 , 0 , 2 , 0 , 2 , 0 , 4],
-            [0 , 0 , 0 , 0 , 0 , 0 , 0],
-            [0 , 1 , 0 , 5 , 0 , 2 , 0],
-            [0 , 0 , 0 , 0 , 0 , 0 , 0],
-            [4 , 0 , 0 , 0 , 0 , 0 , 3]]
+    map =  [[0, 0, 1, 0, 1],
+            [0, 0, 0, 0, 0],
+            [4, 0, 5, 0, 2],
+            [0, 0, 0, 0, 0],
+            [4, 0, 3, 0, 0]]
     islands = []
     size = len(map)
     for i in range(size):
@@ -576,50 +689,76 @@ def create_sample_puzzle():
 
 
 def main():
-    """Main function to demonstrate the CNF constraint generation and solving."""
     print("Hashiwokakero CNF Constraint Generator & Solver")
     print("=" * 60)
-    
+
     # Create sample puzzle
     grid_size, islands = create_sample_puzzle()
-    
+
     # Initialize solver
     solver = HashiwokakeroSolver(grid_size, islands)
-    
+
     # Generate CNF constraints
     clauses = solver.generate_cnf_constraints()
 
-    
     print(f"\nGenerated {len(clauses)} CNF clauses")
-    print("\n10 first clauses:")
-    for i, clause in enumerate(clauses):
-        if i >= 10:
-            break
+    print("\nFirst 10 clauses:")
+    for i, clause in enumerate(clauses[:10]):
         print(f"  Clause {i+1}: {clause}")
-    
-    # Try to solve with PySAT
-    print("\n" + "="*60)
-    print("SOLVING WITH PYSAT + CONNECTIVITY CHECK")
-    print("="*60)
-    
-    if PYSAT_AVAILABLE:
-        # First try the regular solver
 
-        solution = solver.solve_with_connectivity_check(max_iterations=20)
+    print("\n" + "=" * 60)
+    print("Choose a solving method:")
+    print("1. PySAT")
+    print("2. Brute-Force")
+    print("3. Backtrack")
+    print("=" * 60)
 
+    choice = input("Enter your choice: ").strip()
+
+    if choice == "1":
+        print("\n" + "=" * 60)
+        print("SOLVING WITH PYSAT + CONNECTIVITY CHECK")
+        print("=" * 60)
+
+        if PYSAT_AVAILABLE:
+            solution = solver.solve_with_connectivity_check(max_iterations=20)
+            if solution:
+                solver.print_solution(solution)
+                solver.visualize_solution(solution)
+            else:
+                print("No valid solution found.")
+        else:
+            print("PySAT not available.")
+            print("To use this solver:")
+            print("1. Install PySAT: pip install python-sat")
+            print("2. Run the program again")
+
+    elif choice == "2":
+        print("\n" + "=" * 60)
+        print("SOLVING WITH BRUTE-FORCE")
+        print("=" * 60)
+
+        solution = solver.solve_brute_force(max_iterations=1000)
         if solution:
-            # Print the solution
             solver.print_solution(solution)
             solver.visualize_solution(solution)
+        else:
+            print("No valid solution found.")
+    elif choice == "3":
+        print("\n" + "=" * 60)
+        print("SOLVING WITH BACKTRACK")
+        print("=" * 60)
+
+        solution = solver.solve_backtracking()
+        if solution:
+            print(f"Number of steps taken: {solver.backtrack_counter}")
+            solver.print_solution(solution)
+            solver.visualize_solution(solution)
+        else:
+            print("No valid solution found.")
+
     else:
-        print("PySAT not available. To solve:")
-        print("1. Install PySAT: pip install python-sat")
-        print("2. Run the program again")
-
-
-
-
-
+        print("Invalid choice")
 
 if __name__ == "__main__":
     main()
