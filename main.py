@@ -198,16 +198,9 @@ class HashiwokakeroSolver:
             target: Target sum
             island: Island for debugging
         """
-        # For small cases, use enumeration
-        # Maximum case: 4 connections × 2 variables each = 8 variables
-        # Since max bridges per island is 8, this covers all practical cases
-        if len(weighted_vars) <= 8:  # Covers all realistic cases (up to 4 connections)
-            self._add_weighted_cardinality_enumeration(weighted_vars, target)
-        else:
-            # For larger cases (shouldn't happen in normal Hashiwokakero), use simplified approach
-            print(f"Warning: Island {island} has {len(weighted_vars)} bridge variables - using simplified constraints")
-            self._add_weighted_cardinality_simplified(weighted_vars, target)
-    
+        self._add_weighted_cardinality_enumeration(weighted_vars, target)
+
+            
     def _add_weighted_cardinality_enumeration(self, weighted_vars: List[Tuple[int, int]], target: int):
         """Add weighted cardinality constraint by enumerating valid combinations."""
         n = len(weighted_vars)
@@ -238,30 +231,7 @@ class HashiwokakeroSolver:
                 
                 if clause:  # Only add non-empty clauses
                     self.clauses.append(clause)
-    
-    def _add_weighted_cardinality_simplified(self, weighted_vars: List[Tuple[int, int]], target: int):
-        """
-        Simplified weighted cardinality constraint for larger cases.
-        This is an approximation - not as precise as full enumeration.
-        """
-        variables = [var for var, weight in weighted_vars]
-        weights = [weight for var, weight in weighted_vars]
-        
-        # Add at least some constraint - this is a basic approximation
-        # In a full implementation, you'd use more sophisticated encoding
-        
-        # Basic constraint: if target > 0, at least one variable must be true
-        if target > 0:
-            self.clauses.append(variables)
-        
-        # Basic constraint: limit the number of variables that can be true
-        # This is very approximate
-        max_vars = target  # Very rough approximation
-        if len(variables) > max_vars:
-            # Add constraints that prevent too many variables from being true
-            for combo in combinations(variables, max_vars + 1):
-                clause = [-var for var in combo]
-                self.clauses.append(clause)
+
     
     def _add_no_crossing_constraints(self):
         """Constraint: Bridges must not cross each other."""
@@ -322,82 +292,7 @@ class HashiwokakeroSolver:
                 if connected_bridges:
                     self.clauses.append(connected_bridges)
     
-    def print_solution_info(self):
-        """Print information about the generated constraints."""
-        print(f"Grid size: {self.grid_size}x{self.grid_size}")
-        print(f"Number of islands: {len(self.islands)}")
-        print(f"Possible bridges: {len(self.possible_bridges)}")
-        print(f"Total variables: {self.var_counter - 1}")
-        print(f"Total clauses: {len(self.clauses)}")
-        
-        print("\nIslands:")
-        for i, (row, col, required) in enumerate(self.islands):
-            print(f"  Island {i+1}: ({row}, {col}) requires {required} bridges")
-        
-        print("\nPossible bridges:")
-        for i, bridge in enumerate(self.possible_bridges):
-            print(f"  Bridge {i+1}: {bridge[0]} <-> {bridge[1]}")
-            
-        # Print constraint complexity analysis
-        print("\nConstraint Complexity Analysis:")
-        for row, col, required in self.islands:
-            island = (row, col)
-            connected_bridges = []
-            for bridge in self.possible_bridges:
-                island1, island2 = bridge
-                if island == island1 or island == island2:
-                    connected_bridges.append(bridge)
-            
-            num_variables = len(connected_bridges) * 2  # Each bridge has 1-bridge and 2-bridge variables
-            max_possible_bridges = sum(2 for _ in connected_bridges)  # Max if all are double bridges
-            
-            print(f"  Island {island}: {len(connected_bridges)} connections, {num_variables} variables")
-            print(f"    Required: {required} bridges, Max possible: {max_possible_bridges} bridges")
-            print(f"    Constraint type: {'Enumeration' if num_variables <= 8 else 'Simplified'}")
-        
-        print(f"\nNote: Maximum bridges per island in Hashiwokakero is 8 (2 in each of 4 directions)")
-        print(f"Each bridge connection creates 2 variables (1-bridge and 2-bridge options)")
-    
-    def solve_with_pysat(self) -> Optional[Dict]:
-        """
-        Solve the CNF using PySAT and return the solution.
-        
-        Returns:
-            Dictionary with solution information, or None if unsatisfiable
-        """
-        if not PYSAT_AVAILABLE:
-            print("Error: PySAT not available. Install with: pip install python-sat")
-            return None
-        
-        if not self.clauses:
-            print("Error: No clauses generated. Call generate_cnf_constraints() first.")
-            return None
-        
-        print("Solving with PySAT...")
-        
-        # Create CNF formula
-        cnf = CNF()
-        for clause in self.clauses:
-            cnf.append(clause)
-        
-        # Solve using Glucose3 solver
-        solver = Glucose3()
-        solver.append_formula(cnf)
-        
-        # Check satisfiability
-        is_satisfiable = solver.solve()
-        
-        if is_satisfiable:
-            # Get the model (variable assignments)
-            model = solver.get_model()
-            solver.delete()
-            
-            print("✓ Solution found!")
-            return self._interpret_solution(model)
-        else:
-            solver.delete()
-            print("✗ No solution exists (UNSAT)")
-            return None
+
     
     def _interpret_solution(self, model: List[int]) -> Dict:
         """
@@ -440,6 +335,113 @@ class HashiwokakeroSolver:
         
         return solution
     
+    def _add_clause_to_forbid_solution(self, solution: Dict):
+        """
+        Add a clause that forbids the current solution.
+        This forces the SAT solver to find a different solution.
+        """
+        # Collect all the variables that are true in this solution
+        true_bridge_vars = []
+        
+        for bridge in solution['bridges']:
+            island1, island2 = bridge['from'], bridge['to']
+            count = bridge['count']
+            var = self._get_bridge_variable(island1, island2, count)
+            true_bridge_vars.append(var)
+        
+        # Create a clause that prevents all these variables from being true simultaneously
+        # At least one of them must be false in any new solution
+        forbid_clause = [-var for var in true_bridge_vars]
+        
+        if forbid_clause:  # Only add if there are variables to forbid
+            self.clauses.append(forbid_clause)
+            print(f"Added clause to forbid disconnected solution: {forbid_clause}")
+        
+    def solve_with_connectivity_check(self, max_iterations: int = 10) -> Optional[Dict]:
+        """
+        Solve the CNF with iterative connectivity checking.
+        If a solution is found but not connected, forbid it and try again.
+        
+        Args:
+            max_iterations: Maximum number of iterations to try
+            
+        Returns:
+            Dictionary with solution information, or None if no connected solution found
+        """
+        if not PYSAT_AVAILABLE:
+            print("Error: PySAT not available. Install with: pip install python-sat")
+            return None
+        
+        if not self.clauses:
+            print("Error: No clauses generated. Call generate_cnf_constraints() first.")
+            return None
+        
+        print("Solving with connectivity checking...")
+        
+        for iteration in range(max_iterations):
+            print(f"\nIteration {iteration + 1}:")
+            
+            # Create CNF formula with current clauses
+            cnf = CNF()
+            for clause in self.clauses:
+                cnf.append(clause)
+            
+            # Solve using Glucose3 solver
+            solver = Glucose3()
+            solver.append_formula(cnf)
+            
+            # Check satisfiability
+            is_satisfiable = solver.solve()
+            
+            if not is_satisfiable:
+                solver.delete()
+                print("✗ No more solutions exist (UNSAT)")
+                return None
+            
+            # Get the model and interpret solution
+            model = solver.get_model()
+            solver.delete()
+            
+            solution = self._interpret_solution(model)
+            print(f"Found solution with {solution['total_bridges']} bridges")
+            
+            # Check connectivity
+            if len(self.islands) == 0:
+                print("✓ Empty puzzle - trivially connected")
+                return solution
+            
+            # Use any island as starting point for DFS
+            start_island = (self.islands[0][0], self.islands[0][1])
+            visited = set()
+            
+            is_connected = dfs_check_connectivity(
+                start_island, 
+                visited, 
+                self.island_positions, 
+                solution['bridges']
+            )
+            
+            if is_connected:
+                print("✓ Solution is connected!")
+                return solution
+            else:
+                print(f"✗ Solution is disconnected (visited {len(visited)}/{len(self.islands)} islands)")
+                print(f"  Visited islands: {sorted(visited)}")
+                print(f"  Missing islands: {sorted(set(self.island_positions.keys()) - visited)}")
+                
+                # Forbid this solution and try again
+                self._add_clause_to_forbid_solution(solution)
+                print("  Added constraint to forbid this solution")
+        
+        print(f"\n✗ Could not find connected solution in {max_iterations} iterations")
+        return None
+    
+
+
+
+
+
+
     def print_solution(self, solution: Dict):
         """Print the solution in a readable format."""
         if not solution:
@@ -507,6 +509,48 @@ class HashiwokakeroSolver:
         for row in grid:
             print(' '.join(row))
 
+
+def dfs_check_connectivity(island: Tuple[int, int], visited: Set[Tuple[int, int]],
+                          island_positions: Dict[Tuple[int, int], int],
+                          bridges: List[Dict]) -> bool:
+    """Perform DFS to check if all islands are connected via bridges.
+    Args:
+        island: Starting island position (row, col)
+        visited: Set of visited islands
+        island_positions: Dictionary of island positions and their required bridges
+        bridges: List of bridge dictionaries with 'from', 'to', 'count' keys
+    Returns:
+        True if all islands are reachable, False otherwise
+    """
+    # Build adjacency list from bridges
+    adjacency = {}
+    for pos in island_positions:
+        adjacency[pos] = []
+    
+    for bridge in bridges:
+        from_island = bridge['from']
+        to_island = bridge['to']
+        if from_island in adjacency and to_island in adjacency:
+            adjacency[from_island].append(to_island)
+            adjacency[to_island].append(from_island)
+    
+    # DFS traversal
+    stack = [island]
+    visited.clear()
+    
+    while stack:
+        current = stack.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        
+        # Add all connected neighbors
+        for neighbor in adjacency.get(current, []):
+            if neighbor not in visited:
+                stack.append(neighbor)
+    
+    # Check if all islands were visited
+    return len(visited) == len(island_positions)
 def read_map():
     map =  [[0 , 2 , 0 , 5 , 0 , 0 , 2],
             [0 , 0 , 0 , 0 , 0 , 0 , 0],
@@ -544,96 +588,38 @@ def main():
     
     # Generate CNF constraints
     clauses = solver.generate_cnf_constraints()
-    
-    # Print solution information
-    solver.print_solution_info()
+
     
     print(f"\nGenerated {len(clauses)} CNF clauses")
-    print("\nAll clauses:")
+    print("\n10 first clauses:")
     for i, clause in enumerate(clauses):
+        if i >= 10:
+            break
         print(f"  Clause {i+1}: {clause}")
-    
-    if len(clauses) > 10:
-        print("  ...")
     
     # Try to solve with PySAT
     print("\n" + "="*60)
-    print("SOLVING WITH PYSAT")
+    print("SOLVING WITH PYSAT + CONNECTIVITY CHECK")
     print("="*60)
     
     if PYSAT_AVAILABLE:
-        solution = solver.solve_with_pysat()
-        
+        # First try the regular solver
+
+        solution = solver.solve_with_connectivity_check(max_iterations=20)
+
         if solution:
+            # Print the solution
             solver.print_solution(solution)
             solver.visualize_solution(solution)
-        else:
-            print("No solution found - the puzzle may be unsolvable with current constraints.")
     else:
         print("PySAT not available. To solve:")
         print("1. Install PySAT: pip install python-sat")
         print("2. Run the program again")
-        
-        # # Still offer DIMACS export
-        # save_to_dimacs = input("\nSave to DIMACS format for external solver? (y/n): ").lower().strip()
-        # if save_to_dimacs == 'y':
-        #     save_dimacs_format(clauses, solver.var_counter - 1, "hashiwokakero.cnf")
-        #     print("You can solve this with external SAT solvers like MiniSat, Glucose, etc.")
 
 
-def demo_pysat_usage():
-    """
-    Demonstrate step-by-step PySAT usage for educational purposes.
-    """
-    print("\n" + "="*60)
-    print("PySAT USAGE DEMONSTRATION")
-    print("="*60)
-    
-    print("Here's how PySAT solves our CNF:")
-    print()
-    print("1. INSTALL PySAT:")
-    print("   pip install python-sat")
-    print()
-    print("2. IMPORT MODULES:")
-    print("   from pysat.solvers import Glucose3")
-    print("   from pysat.formula import CNF")
-    print()
-    print("3. CREATE CNF FORMULA:")
-    print("   cnf = CNF()")
-    print("   for clause in your_clauses:")
-    print("       cnf.append(clause)")
-    print()
-    print("4. SOLVE:")
-    print("   solver = Glucose3()")
-    print("   solver.append_formula(cnf)")
-    print("   is_sat = solver.solve()")
-    print()
-    print("5. GET SOLUTION:")
-    print("   if is_sat:")
-    print("       model = solver.get_model()  # List of variable assignments")
-    print("       # model contains +/- numbers for each variable")
-    print("   solver.delete()  # Clean up")
-    print()
-    print("6. INTERPRET RESULTS:")
-    print("   # Positive numbers = True variables")
-    print("   # Negative numbers = False variables")
-    print("   # Use your variable mapping to understand bridge assignments")
 
 
-def save_dimacs_format(clauses: List[List[int]], num_vars: int, filename: str):
-    """Save CNF clauses in DIMACS format."""
-    with open(filename, 'w') as f:
-        f.write(f"p cnf {num_vars} {len(clauses)}\n")
-        for clause in clauses:
-            f.write(" ".join(map(str, clause)) + " 0\n")
-    
-    print(f"Saved CNF to {filename}")
 
 
 if __name__ == "__main__":
     main()
-    
-    # Show PySAT usage demo
-    # show_demo = input("\nShow PySAT usage demonstration? (y/n): ").lower().strip()
-    # if show_demo == 'y':
-    #     demo_pysat_usage()
