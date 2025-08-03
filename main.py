@@ -1,56 +1,97 @@
-import HashiwokakeroSolver as hashi  
-import FileHandling as util
-import Astar as Astar
+"""
+Hashiwokakero (Bridges) Puzzle CNF Constraint Generator
 
-def hashi_solver(py_solver: hashi.HashiwokakeroSolver):
-    if hashi.PYSAT_AVAILABLE:
-        # First try the regular solver
+This module implements CNF (Conjunctive Normal Form) constraints for the Hashiwokakero puzzle.
+The puzzle involves connecting islands with bridges according to specific rules.
+"""
+import time
+from hashi_core import HashiwokakeroSolver
+from hashi_pysat import HashiSATSolver
+from hashi_bf import HashiBruteSolver
+from hashi_back import HashiBacktrackSolver
 
-        solution = py_solver.solve_with_connectivity_check(max_iterations=20)
+def read_map():
+    map =  [[0, 0, 1, 0, 1],
+            [0, 0, 0, 0, 0],
+            [4, 0, 5, 0, 2],
+            [0, 0, 0, 0, 0],
+            [4, 0, 3, 0, 0]]
+    islands = []
+    size = len(map)
+    for i in range(size):
+        for j in range(size):
+            if map[i][j] != 0:
+                islands.append((i, j, map[i][j]))
+    return size, islands
 
-        if solution:
-            # Print the solution
-            # solver.print_solution(solution)
-            py_solver.visualize_solution(solution)
-    else:
-        print("PySAT not available. To solve:")
-        print("1. Install PySAT: pip install python-sat")
-        print("2. Run the program again")
+def create_sample_puzzle():
+    grid_size, islands = read_map()
+    return grid_size, islands
 
 def main():
-    """Main function to demonstrate the CNF constraint generation and solving."""
-    # print("Hashiwokakero CNF Constraint Generator & Solver")
-    # print("=" * 60)
-    
-    # Create sample puzzle
-    # grid_size, islands = create_sample_puzzle()
-    grid_size, islands = util.read_map()
-    
-    # Initialize solver
-    solver = hashi.HashiwokakeroSolver(grid_size, islands)
-    hashi_solver(solver)
-    # Generate CNF constraints
-    # clauses = solver.generate_cnf_constraints()
+    print("Hashiwokakero CNF Constraint Generator & Solver")
+    print("=" * 60)
 
-    
-    # print(f"\nGenerated {len(clauses)} CNF clauses")
-    # print("\n10 first clauses:")
-    # for i, clause in enumerate(clauses):
-    #     if i >= 10:
-    #         break
-    #     print(f"  Clause {i+1}: {clause}")
-    
-    # # Try to solve with PySAT
-    # print("\n" + "="*60)
-    # print("SOLVING WITH PYSAT + CONNECTIVITY CHECK")
-    # print("="*60)
-    
+    grid_size, islands = create_sample_puzzle()
 
+    print("\n" + "=" * 60)
+    print("Choose a solving method:")
+    print("1. PySAT")
+    print("2. Brute-Force")
+    print("3. Backtrack")
+    print("=" * 60)
 
+    choice = input("Enter your choice: ").strip()
+    start_time = time.time()
+    if choice == "1":
+        print("\n" + "=" * 60)
+        print("SOLVING WITH PYSAT + CONNECTIVITY CHECK")
+        print("=" * 60)
 
+        solver = HashiSATSolver(grid_size, islands)
+        solution = solver.solve_with_connectivity_check(max_iterations=20)
+        if solution:
+            elapsed_time = time.time() - start_time
+            print(f"Time taken: {elapsed_time:.4f} seconds")
+            solver.print_solution(solution)
+            solver.visualize_solution(solution)
+        else:
+            print("No valid solution found.")
 
+    elif choice == "2":
+        print("\n" + "=" * 60)
+        print("SOLVING WITH BRUTE-FORCE")
+        print("=" * 60)
 
+        solver = HashiBruteSolver(grid_size, islands)
+        solution = solver.solve_brute_force(max_iterations=1000)
+        if solution:
+            elapsed_time = time.time() - start_time
+            print(f"Time taken: {elapsed_time:.4f} seconds")
+            solver.print_solution(solution)
+            solver.visualize_solution(solution)
+            
+        else:
+            print("No valid solution found.")
 
+    elif choice == "3":
+        print("\n" + "=" * 60)
+        print("SOLVING WITH BACKTRACK")
+        print("=" * 60)
+
+        solver = HashiBacktrackSolver(grid_size, islands)
+        solution = solver.solve_backtracking()
+        if solution:
+            print(f"Number of steps taken: {solver.backtrack_counter}")
+            elapsed_time = time.time() - start_time
+            print(f"Time taken: {elapsed_time:.4f} seconds")
+            solver.print_solution(solution)
+            solver.visualize_solution(solution)
+        else:
+            print("No valid solution found.")
+
+    else:
+        print("Invalid choice")
 
 if __name__ == "__main__":
     main()
