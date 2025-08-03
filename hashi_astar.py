@@ -179,6 +179,8 @@ class HashiAStarSolver(HashiwokakeroSolver):
                 final_h = Node(assignment, self.clauses, len(assignment)).h_val
                 if final_h == 0:  
                     solution = self._interpret_solution([var if val else -var for var, val in assignment.items()])
+                    if any(v > 0 for v in self.island_positions.values()) and not solution['bridges']:
+                        continue
                     if dfs_check_connectivity(self.islands[0][:2], set(), self.island_positions, solution['bridges']):
                         return solution
                     else:
