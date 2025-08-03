@@ -1,6 +1,38 @@
-import HashiwokakeroSolver as hashi
+from hashi_core import HashiwokakeroSolver
 from typing import List, Tuple, Dict, Set, Optional
 import heapq as hq
+
+def dfs_check_connectivity(island: Tuple[int, int], visited: Set[Tuple[int, int]],
+                          island_positions: Dict[Tuple[int, int], int],
+                          bridges: List[Dict]) -> bool:
+    # Build adjacency list from bridges
+    adjacency = {}
+    for pos in island_positions:
+        adjacency[pos] = []
+    
+    for bridge in bridges:
+        from_island = bridge['from']
+        to_island = bridge['to']
+        if from_island in adjacency and to_island in adjacency:
+            adjacency[from_island].append(to_island)
+            adjacency[to_island].append(from_island)
+    
+    # DFS traversal
+    stack = [island]
+    visited.clear()
+    
+    while stack:
+        current = stack.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        
+        # Add all connected neighbors
+        for neighbor in adjacency.get(current, []):
+            if neighbor not in visited:
+                stack.append(neighbor)
+    return len(visited) == len(island_positions)
+
 
 class Node:
     def __init__(self, current_assignment, clauses, g_val: int):
@@ -35,14 +67,12 @@ class Node:
         return count
     
 
-class AStarSolver:
+class HashiAStarSolver(HashiwokakeroSolver):
     def __init__(self, grid_size: int, islands: List[Tuple[int, int, int]]):
-        self.grid_size = grid_size
-        self.islands = islands
-        self.cnf_converter = hashi.HashiwokakeroSolver(grid_size, islands)
-        self.clauses = self.cnf_converter.generate_cnf_constraints()
+        super().__init__(grid_size, islands)
+        self.clauses = self.generate_cnf_constraints()
         # Get all variables
-        self.variables = set(abs(v) for v in self.cnf_converter.variables.values())
+        self.variable_ids = set(abs(v) for v in self.variables.values())
         # Start with empty assignment
         self.start_node = Node(current_assignment={}, clauses=self.clauses, g_val=0)
     
@@ -80,7 +110,8 @@ class AStarSolver:
     
     def selectVariable(self, assignment):
         """Select next variable using Most Constraining Variable heuristic."""
-        unassigned = self.variables - set(assignment.keys()) #get unassigned variables
+        unassigned = self.variable_ids - set(assignment.keys())
+
         if not unassigned:
             return None    #no unassigned variables left then return None
         #count how many clauses each variable appears in
@@ -101,7 +132,7 @@ class AStarSolver:
         # Return variable that appears in most unsatisfied clauses
         return max(unassigned, key=lambda v: freq.get(v, 0))
 
-    def solve(self) -> Optional[Dict[int, bool]]:
+    def solve_astar(self) -> Optional[Dict[int, bool]]:
         """Solve using A* with constraint propagation."""        
         open_list = []
         hq.heappush(open_list, self.start_node)
@@ -123,8 +154,13 @@ class AStarSolver:
 
             #goal test: check if all clauses are satisfied
             if current_node.h_val == 0:
-                return assignment
-
+                solution = self._interpret_solution([var if val else -var for var, val in assignment.items()])
+                if dfs_check_connectivity(self.islands[0][:2], set(), self.island_positions, solution['bridges']):
+                    return solution  
+                else:
+                   self._add_clause_to_forbid_solution(solution)  
+                   continue  
+                
             #apply unit propagation to current assignment
             unit_assignments = self.getUnitClauses(assignment)
             if unit_assignments is None: #conflict detected during unit propagation
@@ -141,8 +177,12 @@ class AStarSolver:
             next_var = self.selectVariable(assignment)
             if next_var is None:
                 final_h = Node(assignment, self.clauses, len(assignment)).h_val
-                if final_h == 0:
-                    return assignment
+                if final_h == 0:  
+                    solution = self._interpret_solution([var if val else -var for var, val in assignment.items()])
+                    if dfs_check_connectivity(self.islands[0][:2], set(), self.island_positions, solution['bridges']):
+                        return solution
+                    else:
+                        self._add_clause_to_forbid_solution(solution)
                 continue
             #generate successor nodes
             successors_added = 0
@@ -155,106 +195,10 @@ class AStarSolver:
                     new_node = Node(new_assignment, self.clauses, new_g_val)                                    
                     hq.heappush(open_list, new_node)
                     successors_added += 1
+        print(f"Explored {nodes_explored} nodes, but no solution found.")
         return None
 
-def read_map():
-    map =  [[0 , 2 , 0 , 5 , 0 , 0 , 2],
-            [0 , 0 , 0 , 0 , 0 , 0 , 0],
-            [4 , 0 , 2 , 0 , 2 , 0 , 4],
-            [0 , 0 , 0 , 0 , 0 , 0 , 0],
-            [0 , 1 , 0 , 5 , 0 , 2 , 0],
-            [0 , 0 , 0 , 0 , 0 , 0 , 0],
-            [4 , 0 , 0 , 0 , 0 , 0 , 3]]
-    islands = []
-    size = len(map)
-    for i in range(size):
-        for j in range(size):
-            if map[i][j] != 0:
-                islands.append((i, j, map[i][j]))
-    return size, islands
 
-def convert_assignment_to_solution(cnf_solver: hashi, assignment: Dict[int, bool]) -> Dict:
-    bridge_counts = {}
-    bridges = []
-
-    for (island1, island2, count), var in cnf_solver.variables.items():
-        if isinstance(count, int) and assignment.get(var, False): 
-            bridges.append({'from': island1, 'to': island2, 'count': count})
-            for island in [island1, island2]:
-                bridge_counts[island] = bridge_counts.get(island, 0) + count
-
-    total = sum(b['count'] for b in bridges)
-    return {
-        'total_bridges': total,
-        'bridges': bridges,
-        'bridge_counts': bridge_counts
-    } 
-# def create_simple_test():
-#     """Create a very simple test case that definitely has a solution."""
-#     # 3x3 grid with just 2 islands
-#     grid_size = 3
-#     islands = [
-#         (0, 0, 1),  # Island at (0,0) needs 1 bridge
-#         (0, 2, 1),  # Island at (0,2) needs 1 bridge  
-#     ]
-#     return grid_size, islands
-
-# def test_simple_case():
-#     """Test with a simple case first."""
-#     print("="*60)
-#     print("TESTING SIMPLE CASE")
-#     print("="*60)
-    
-#     grid_size, islands = create_simple_test()
-#     print(f"Simple test: {len(islands)} islands")
-    
-#     solver = AStarSolver(grid_size, islands)
-#     print(f"CNF has {len(solver.clauses)} clauses")
-#     print(f"Variables: {len(solver.variables)}")
-    
-#     # Print some clauses for debugging
-#     print("\nFirst 10 clauses:")
-#     for i, clause in enumerate(solver.clauses[:10]):
-#         print(f"  {i+1}: {clause}")
-    
-#     assignment = solver.solve()
-    
-#     if assignment:
-#         print("A* found a solution for simple case!")
-#         cnf_solver = solver.cnf_converter
-#         solution = convert_assignment_to_solution(cnf_solver, assignment)
-#         cnf_solver.print_solution(solution)
-#         return True
-#     else:
-#         print("A* failed on simple case!")
-#         return False
-
-if __name__ == "__main__":
-    # Test simple case first
-    # simple_success = test_simple_case()
-    
-    # if not simple_success:
-    #     print("Stopping - simple case failed")
-    #     exit(1)
-    
-    # print("\n" + "="*60)
-    # print("TESTING COMPLEX CASE")
-    # print("="*60)
-    
-    grid_size, islands = read_map()
-    
-    solver = AStarSolver(grid_size, islands)
-    assignment = solver.solve()
-
-    if assignment:
-        print("A* found a solution.")
-        cnf_solver = solver.cnf_converter
-        solution = convert_assignment_to_solution(cnf_solver, assignment)
-
-        # cnf_solver.print_solution(solution)
-        cnf_solver.visualize_solution(solution)
-    else:
-        print("No solution found.")
 
 
 

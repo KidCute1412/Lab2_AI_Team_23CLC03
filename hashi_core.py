@@ -378,12 +378,12 @@ class HashiwokakeroSolver:
         if not solution:
             return
             
-        print("\n" + "="*50)
-        print("GRID VISUALIZATION")
-        print("="*50)
+        # print("\n" + "="*50)
+        # print("GRID VISUALIZATION")
+        # print("="*50)
         
         # Create empty grid
-        grid = [['.' for _ in range(self.grid_size)] for _ in range(self.grid_size)]
+        grid = [['0' for _ in range(self.grid_size)] for _ in range(self.grid_size)]
         
         # Place islands
         for row, col, required in self.islands:
@@ -404,7 +404,7 @@ class HashiwokakeroSolver:
                     grid[row][c1] = '$' if count == 2 else '|'
         
         # Print grid
-        print("Legend: Numbers=Islands, -/|=Single bridge, =/$=Double bridge")
+        # print("Legend: Numbers=Islands, -/|=Single bridge, =/$=Double bridge")
         print()
         for row in grid:
             print(' '.join(row))
