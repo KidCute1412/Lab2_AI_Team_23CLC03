@@ -89,7 +89,7 @@ class AStarSolver:
             count = 0
             for clause in self.clauses:
                 if var in [abs(lit) for lit in clause]: #if variable appears in the clause
-                    #check if clause is not yet satisfied
+                    #check if clause is NOT YET SATISFIED 
                     satisfied = any(
                         (lit > 0 and assignment.get(abs(lit), False)) or 
                         (lit < 0 and not assignment.get(abs(lit), True))
@@ -115,7 +115,7 @@ class AStarSolver:
             assignment = current_node.current_assignment.copy()
             nodes_explored += 1
 
-            #check if already explored this state (avoid cycles)
+            #check if already explored 
             state_key = frozenset(assignment.items()) 
             if state_key in closed_set:
                 continue
@@ -155,10 +155,6 @@ class AStarSolver:
                     new_node = Node(new_assignment, self.clauses, new_g_val)                                    
                     hq.heappush(open_list, new_node)
                     successors_added += 1
-        if nodes_explored >= max_nodes:
-            print(f"Search terminated after {max_nodes} nodes (limit reached)")
-        else:
-            print(f"No solution found after exploring {nodes_explored} nodes.")
         return None
 
 def read_map():
