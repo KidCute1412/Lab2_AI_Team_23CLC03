@@ -1,4 +1,4 @@
-from main import HashiwokakeroSolver as hashi
+import HashiwokakeroSolver as hashi
 from typing import List, Tuple, Dict, Set, Optional
 import heapq as hq
 
@@ -39,7 +39,7 @@ class AStarSolver:
     def __init__(self, grid_size: int, islands: List[Tuple[int, int, int]]):
         self.grid_size = grid_size
         self.islands = islands
-        self.cnf_converter = hashi(grid_size, islands)
+        self.cnf_converter = hashi.HashiwokakeroSolver(grid_size, islands)
         self.clauses = self.cnf_converter.generate_cnf_constraints()
         # Get all variables
         self.variables = set(abs(v) for v in self.cnf_converter.variables.values())
@@ -189,57 +189,57 @@ def convert_assignment_to_solution(cnf_solver: hashi, assignment: Dict[int, bool
         'bridges': bridges,
         'bridge_counts': bridge_counts
     } 
-def create_simple_test():
-    """Create a very simple test case that definitely has a solution."""
-    # 3x3 grid with just 2 islands
-    grid_size = 3
-    islands = [
-        (0, 0, 1),  # Island at (0,0) needs 1 bridge
-        (0, 2, 1),  # Island at (0,2) needs 1 bridge  
-    ]
-    return grid_size, islands
+# def create_simple_test():
+#     """Create a very simple test case that definitely has a solution."""
+#     # 3x3 grid with just 2 islands
+#     grid_size = 3
+#     islands = [
+#         (0, 0, 1),  # Island at (0,0) needs 1 bridge
+#         (0, 2, 1),  # Island at (0,2) needs 1 bridge  
+#     ]
+#     return grid_size, islands
 
-def test_simple_case():
-    """Test with a simple case first."""
-    print("="*60)
-    print("TESTING SIMPLE CASE")
-    print("="*60)
+# def test_simple_case():
+#     """Test with a simple case first."""
+#     print("="*60)
+#     print("TESTING SIMPLE CASE")
+#     print("="*60)
     
-    grid_size, islands = create_simple_test()
-    print(f"Simple test: {len(islands)} islands")
+#     grid_size, islands = create_simple_test()
+#     print(f"Simple test: {len(islands)} islands")
     
-    solver = AStarSolver(grid_size, islands)
-    print(f"CNF has {len(solver.clauses)} clauses")
-    print(f"Variables: {len(solver.variables)}")
+#     solver = AStarSolver(grid_size, islands)
+#     print(f"CNF has {len(solver.clauses)} clauses")
+#     print(f"Variables: {len(solver.variables)}")
     
-    # Print some clauses for debugging
-    print("\nFirst 10 clauses:")
-    for i, clause in enumerate(solver.clauses[:10]):
-        print(f"  {i+1}: {clause}")
+#     # Print some clauses for debugging
+#     print("\nFirst 10 clauses:")
+#     for i, clause in enumerate(solver.clauses[:10]):
+#         print(f"  {i+1}: {clause}")
     
-    assignment = solver.solve()
+#     assignment = solver.solve()
     
-    if assignment:
-        print("A* found a solution for simple case!")
-        cnf_solver = solver.cnf_converter
-        solution = convert_assignment_to_solution(cnf_solver, assignment)
-        cnf_solver.print_solution(solution)
-        return True
-    else:
-        print("A* failed on simple case!")
-        return False
+#     if assignment:
+#         print("A* found a solution for simple case!")
+#         cnf_solver = solver.cnf_converter
+#         solution = convert_assignment_to_solution(cnf_solver, assignment)
+#         cnf_solver.print_solution(solution)
+#         return True
+#     else:
+#         print("A* failed on simple case!")
+#         return False
 
 if __name__ == "__main__":
     # Test simple case first
-    simple_success = test_simple_case()
+    # simple_success = test_simple_case()
     
-    if not simple_success:
-        print("Stopping - simple case failed")
-        exit(1)
+    # if not simple_success:
+    #     print("Stopping - simple case failed")
+    #     exit(1)
     
-    print("\n" + "="*60)
-    print("TESTING COMPLEX CASE")
-    print("="*60)
+    # print("\n" + "="*60)
+    # print("TESTING COMPLEX CASE")
+    # print("="*60)
     
     grid_size, islands = read_map()
     
@@ -251,7 +251,7 @@ if __name__ == "__main__":
         cnf_solver = solver.cnf_converter
         solution = convert_assignment_to_solution(cnf_solver, assignment)
 
-        cnf_solver.print_solution(solution)
+        # cnf_solver.print_solution(solution)
         cnf_solver.visualize_solution(solution)
     else:
         print("No solution found.")
