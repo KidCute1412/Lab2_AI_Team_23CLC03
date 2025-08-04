@@ -406,11 +406,12 @@ class HashiwokakeroSolver:
                     grid[row][c1] = '$' if count == 2 else '|'
 
         # Print and write grid
-        with open("Outputs/output.txt", "w") as f:
+        with open("Outputs/output.txt", "a") as f:
             for row in grid:
-                line = ' '.join(row)
-                print(line)
-                f.write(line + "\n")
+                formatted_row = '[' + ', '.join(f'"{cell}"' for cell in row) + ']'
+                print(formatted_row)
+                f.write(formatted_row + "\n")
+
 
     def _satisfies_clauses(self, clauses: List[List[int]], model: List[int]) -> bool:
         model_set = set(model)

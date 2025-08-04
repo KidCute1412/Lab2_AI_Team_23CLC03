@@ -26,16 +26,25 @@ def run_solver(name, solver_class, grid_size, islands, solve_method):
 
 
 def main1():
-    for i in range(1, 2):
+    for i in range(1, 3):
         file_path = f"Inputs/input-{i:02}.txt"
         print(f"\nReading input from {file_path}")
         grid_size, islands = fh.read_map(file_path)
         # print(f"Grid size: {grid_size}, Islands: {len(islands)}")
 
         run_solver("PySAT", HashiSATSolver, grid_size, islands, lambda s: s.solve_with_connectivity_check(max_iterations=20))
+        with open("Outputs/output.txt", "a") as f:
+            f.write("\n")
         run_solver("Brute Force", HashiBruteSolver, grid_size, islands, lambda s: s.solve_brute_force(max_iterations=1000))
+        with open("Outputs/output.txt", "a") as f:
+            f.write("\n")
         run_solver("Backtrack", HashiBacktrackSolver, grid_size, islands, lambda s: s.solve_backtracking())
+        with open("Outputs/output.txt", "a") as f:
+            f.write("\n")
         run_solver("A*", HashiAStarSolver, grid_size, islands, lambda s: s.solve_astar())
+        with open("Outputs/output.txt", "a") as f:
+            f.write("\n")
+        
 
 
     
@@ -133,6 +142,9 @@ def main2():  #chọn từng thuật toán để test
         print("Invalid choice")
 
 def main():
+    with open("Outputs/output.txt", "w") as f:
+        f.write("")
+    
     print("Welcome to the Hashiwokakero CNF Constraint Generator & Solver")
     print("=" * 60)
     choice = input("Choose mode:\n1. Run all solvers on multiple inputs\n2. Choose a specific input and solver\nEnter your choice (1 or 2): ").strip()
