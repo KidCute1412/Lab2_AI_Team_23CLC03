@@ -345,7 +345,7 @@ class HashiwokakeroSolver:
         
         if forbid_clause:  # Only add if there are variables to forbid
             self.clauses.append(forbid_clause)
-            print(f"Added clause to forbid disconnected solution: {forbid_clause}")
+            # print(f"Added clause to forbid disconnected solution: {forbid_clause}")
 
 
     def print_solution(self, solution: Dict):

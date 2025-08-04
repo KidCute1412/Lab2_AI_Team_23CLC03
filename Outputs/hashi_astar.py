@@ -1,4 +1,5 @@
 from hashi_core import HashiwokakeroSolver
+from hashi_core import dfs_check_connectivity
 from typing import List, Tuple, Dict, Set, Optional
 import heapq as hq
 from hashi_core import dfs_check_connectivity
