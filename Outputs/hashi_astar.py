@@ -1,37 +1,7 @@
 from hashi_core import HashiwokakeroSolver
+from hashi_core import dfs_check_connectivity
 from typing import List, Tuple, Dict, Set, Optional
 import heapq as hq
-
-def dfs_check_connectivity(island: Tuple[int, int], visited: Set[Tuple[int, int]],
-                          island_positions: Dict[Tuple[int, int], int],
-                          bridges: List[Dict]) -> bool:
-    # Build adjacency list from bridges
-    adjacency = {}
-    for pos in island_positions:
-        adjacency[pos] = []
-    
-    for bridge in bridges:
-        from_island = bridge['from']
-        to_island = bridge['to']
-        if from_island in adjacency and to_island in adjacency:
-            adjacency[from_island].append(to_island)
-            adjacency[to_island].append(from_island)
-    
-    # DFS traversal
-    stack = [island]
-    visited.clear()
-    
-    while stack:
-        current = stack.pop()
-        if current in visited:
-            continue
-        visited.add(current)
-        
-        # Add all connected neighbors
-        for neighbor in adjacency.get(current, []):
-            if neighbor not in visited:
-                stack.append(neighbor)
-    return len(visited) == len(island_positions)
 
 
 class Node:
