@@ -197,7 +197,6 @@ class HashiAStarSolver(HashiwokakeroSolver):
                     new_node = Node(new_assignment, self.clauses, new_g_val)                                    
                     hq.heappush(open_list, new_node)
                     successors_added += 1
-        print(f"Explored {nodes_explored} nodes, but no solution found.")
         return None
 
 
