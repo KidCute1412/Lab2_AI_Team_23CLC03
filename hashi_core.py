@@ -191,6 +191,12 @@ class HashiwokakeroSolver:
         variables = [var for var, weight in weighted_vars]
         weights = [weight for var, weight in weighted_vars]
         
+        # Special case: if no variables but target > 0, constraint is impossible
+        if n == 0 and target > 0:
+            # Add empty clause to make CNF unsatisfiable
+            self.clauses.append([])
+            return
+        
         # Generate all possible combinations of variable assignments
         for assignment in range(2**n):
             total_weight = 0
