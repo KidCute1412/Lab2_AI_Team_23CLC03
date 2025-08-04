@@ -27,7 +27,7 @@ def run_solver(name, solver_class, grid_size, islands, solve_method):
 
 def main1():
     for i in range(1, 2):
-        file_path = f"input{i}.txt"
+        file_path = f"Inputs/input-{i:02}.txt"
         print(f"\nReading input from {file_path}")
         grid_size, islands = fh.read_map(file_path)
         # print(f"Grid size: {grid_size}, Islands: {len(islands)}")
@@ -46,11 +46,11 @@ def main2():  #chọn từng thuật toán để test
     # Read input file
     list_of_files = []
     for i in range(1, 10):
-        file_path = f"input{i}.txt"
+        file_path = f"Inputs/input-{i:02}.txt"
         list_of_files.append(file_path)
     print("Available input files:")
     for idx, file in enumerate(list_of_files, start=1):
-        print(f"{idx}. {file}")
+        print(f"input-{idx:02}.txt")
     file_choice = input("Enter the number of the file you want to use: ").strip()
     if file_choice.isdigit() and 1 <= int(file_choice) <= len(list_of_files):
         file_path = list_of_files[int(file_choice) - 1]
