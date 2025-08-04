@@ -383,23 +383,19 @@ class HashiwokakeroSolver:
         """Create a simple text visualization of the solution."""
         if not solution:
             return
-            
-        # print("\n" + "="*50)
-        # print("GRID VISUALIZATION")
-        # print("="*50)
-        
+
         # Create empty grid
         grid = [['0' for _ in range(self.grid_size)] for _ in range(self.grid_size)]
-        
+
         # Place islands
         for row, col, required in self.islands:
             grid[row][col] = str(required)
-        
+
         # Add bridge representations (simplified)
         for bridge in solution['bridges']:
             (r1, c1), (r2, c2) = bridge['from'], bridge['to']
             count = bridge['count']
-            
+
             if r1 == r2:  # Horizontal bridge
                 start_col, end_col = min(c1, c2), max(c1, c2)
                 for col in range(start_col + 1, end_col):
@@ -408,12 +404,13 @@ class HashiwokakeroSolver:
                 start_row, end_row = min(r1, r2), max(r1, r2)
                 for row in range(start_row + 1, end_row):
                     grid[row][c1] = '$' if count == 2 else '|'
-        
-        # Print grid
-        # print("Legend: Numbers=Islands, -/|=Single bridge, =/$=Double bridge")
-        print()
-        for row in grid:
-            print(' '.join(row))
+
+        # Print and write grid
+        with open("Outputs/output.txt", "w") as f:
+            for row in grid:
+                line = ' '.join(row)
+                print(line)
+                f.write(line + "\n")
 
     def _satisfies_clauses(self, clauses: List[List[int]], model: List[int]) -> bool:
         model_set = set(model)

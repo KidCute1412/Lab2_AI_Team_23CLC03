@@ -45,7 +45,7 @@ def main2():  #chọn từng thuật toán để test
     print("=" * 60)
     # Read input file
     list_of_files = []
-    for i in range(1, 10):
+    for i in range(1, 11):
         file_path = f"Inputs/input-{i:02}.txt"
         list_of_files.append(file_path)
     print("Available input files:")
