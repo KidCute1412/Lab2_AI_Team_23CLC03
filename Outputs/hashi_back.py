@@ -1,6 +1,7 @@
 from typing import List, Tuple, Set, Dict, Optional
 from itertools import combinations, product
 from hashi_core import HashiwokakeroSolver
+from hashi_core import dfs_check_connectivity
 from typing import Optional
 
 def dfs_check_connectivity(island: Tuple[int, int], visited: Set[Tuple[int, int]],

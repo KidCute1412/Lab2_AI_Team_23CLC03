@@ -191,6 +191,12 @@ class HashiwokakeroSolver:
         variables = [var for var, weight in weighted_vars]
         weights = [weight for var, weight in weighted_vars]
         
+        # Special case: if no variables but target > 0, constraint is impossible
+        if n == 0 and target > 0:
+            # Add empty clause to make CNF unsatisfiable
+            self.clauses.append([])
+            return
+        
         # Generate all possible combinations of variable assignments
         for assignment in range(2**n):
             total_weight = 0
@@ -378,12 +384,12 @@ class HashiwokakeroSolver:
         if not solution:
             return
             
-        print("\n" + "="*50)
-        print("GRID VISUALIZATION")
-        print("="*50)
+        # print("\n" + "="*50)
+        # print("GRID VISUALIZATION")
+        # print("="*50)
         
         # Create empty grid
-        grid = [['.' for _ in range(self.grid_size)] for _ in range(self.grid_size)]
+        grid = [['0' for _ in range(self.grid_size)] for _ in range(self.grid_size)]
         
         # Place islands
         for row, col, required in self.islands:
@@ -404,7 +410,7 @@ class HashiwokakeroSolver:
                     grid[row][c1] = '$' if count == 2 else '|'
         
         # Print grid
-        print("Legend: Numbers=Islands, -/|=Single bridge, =/$=Double bridge")
+        # print("Legend: Numbers=Islands, -/|=Single bridge, =/$=Double bridge")
         print()
         for row in grid:
             print(' '.join(row))
@@ -416,3 +422,33 @@ class HashiwokakeroSolver:
                 return False
         return True
 
+def dfs_check_connectivity(island: Tuple[int, int], visited: Set[Tuple[int, int]],
+                          island_positions: Dict[Tuple[int, int], int],
+                          bridges: List[Dict]) -> bool:
+    # Build adjacency list from bridges
+    adjacency = {}
+    for pos in island_positions:
+        adjacency[pos] = []
+    
+    for bridge in bridges:
+        from_island = bridge['from']
+        to_island = bridge['to']
+        if from_island in adjacency and to_island in adjacency:
+            adjacency[from_island].append(to_island)
+            adjacency[to_island].append(from_island)
+    
+    # DFS traversal
+    stack = [island]
+    visited.clear()
+    
+    while stack:
+        current = stack.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        
+        # Add all connected neighbors
+        for neighbor in adjacency.get(current, []):
+            if neighbor not in visited:
+                stack.append(neighbor)
+    return len(visited) == len(island_positions)
