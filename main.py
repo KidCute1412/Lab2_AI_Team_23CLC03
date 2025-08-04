@@ -26,7 +26,8 @@ def run_solver(name, solver_class, grid_size, islands, solve_method):
 
 
 def main1():
-    for i in range(1, 3):
+    num_choice = int(input("Run how many inputs?: "))
+    for i in range(1, num_choice+1):
         file_path = f"Inputs/input-{i:02}.txt"
         print(f"\nReading input from {file_path}")
         grid_size, islands = fh.read_map(file_path)

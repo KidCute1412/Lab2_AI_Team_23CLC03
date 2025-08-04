@@ -6,7 +6,7 @@ Afterwards, head to the main function and run, there will be a prompt:
     Choose mode:
     1. Run all solvers on multiple inputs
     2. Choose a specific input and solver
-Selecting 1 will run all 4 methods on examples given in Inputs: from 1 to 3 (max 5x5),
+Selecting 1 will run all 4 methods on examples given in Inputs: from 1 to 10 (max 25x25),
 the results are shown in Outputs/output.txt, check the terminal message for time.
 
 Selecting 2 will then also prompt you to select a number from 1 to 10 to run an example
