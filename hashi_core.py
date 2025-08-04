@@ -379,11 +379,14 @@ class HashiwokakeroSolver:
         
         print(f"\nSolution status: {'✓ VALID' if all_satisfied else '✗ INVALID'}")
     
-    def visualize_solution(self, solution: Dict):
+    def visualize_solution(self, solution: Dict, file_out = "Outputs/output.txt"):
         """Create a simple text visualization of the solution."""
         if not solution:
             return
-
+        if file_out == "Outputs/output.txt":
+            thing = "a"
+        else:
+            thing = "w"
         # Create empty grid
         grid = [['0' for _ in range(self.grid_size)] for _ in range(self.grid_size)]
 
@@ -406,7 +409,7 @@ class HashiwokakeroSolver:
                     grid[row][c1] = '$' if count == 2 else '|'
 
         # Print and write grid
-        with open("Outputs/output.txt", "a") as f:
+        with open(file_out, thing) as f:
             for row in grid:
                 formatted_row = '[' + ', '.join(f'"{cell}"' for cell in row) + ']'
                 print(formatted_row)

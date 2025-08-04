@@ -4,7 +4,6 @@ from pysat.formula import CNF
 from pysat.solvers import Glucose3
 from hashi_core import HashiwokakeroSolver
 from hashi_core import dfs_check_connectivity
-from typing import Optional
 
 
 

@@ -63,6 +63,7 @@ def main2():  #chọn từng thuật toán để test
     file_choice = input("Enter the number of the file you want to use: ").strip()
     if file_choice.isdigit() and 1 <= int(file_choice) <= len(list_of_files):
         file_path = list_of_files[int(file_choice) - 1]
+        file_out = f"Outputs/output-{int(file_choice):02}.txt"
         grid_size, islands = fh.read_map(file_path)
     else:
         print("Invalid choice. Exiting.")
@@ -89,7 +90,7 @@ def main2():  #chọn từng thuật toán để test
         if solution:
             elapsed_time = time.time() - start_time
             print(f"Time taken: {elapsed_time:.4f} seconds")
-            solver.visualize_solution(solution)
+            solver.visualize_solution(solution, file_out)
         else:
             print("No valid solution found.")
 
@@ -104,7 +105,7 @@ def main2():  #chọn từng thuật toán để test
             elapsed_time = time.time() - start_time
             print(f"Time taken: {elapsed_time:.4f} seconds")
             # solver.print_solution(solution)
-            solver.visualize_solution(solution)
+            solver.visualize_solution(solution, file_out)
             
         else:
             print("No valid solution found.")
@@ -121,7 +122,7 @@ def main2():  #chọn từng thuật toán để test
             elapsed_time = time.time() - start_time
             print(f"Time taken: {elapsed_time:.4f} seconds")
             # solver.print_solution(solution)
-            solver.visualize_solution(solution)
+            solver.visualize_solution(solution, file_out)
         else:
             print("No valid solution found.")
     elif choice == "4":
@@ -135,7 +136,7 @@ def main2():  #chọn từng thuật toán để test
             elapsed_time = time.time() - start_time
             print(f"Time taken: {elapsed_time:.4f} seconds")
             # solver.print_solution(solution)
-            solver.visualize_solution(solution)
+            solver.visualize_solution(solution, file_out)
         else:
             print("No valid solution found.")
     else:
